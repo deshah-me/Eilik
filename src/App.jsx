@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Activity, Camera, CameraOff, Heart, Info, Mic2, ShieldCheck, Sparkles, Volume2, VolumeX, Waves } from 'lucide-react';
-import { chooseIdleMood, chooseReaction, getEmotion, readFaceCue, readHeadMotion } from './emotions.js';
+import { Activity, Camera, CameraOff, Heart, Mic2, ShieldCheck, Sparkles, Volume2, VolumeX } from 'lucide-react';
+import { chooseIdleMood, chooseReaction, emotions, families, getEmotion, readFaceCue, readHeadMotion } from './emotions.js';
 import { createLocalFaceLandmarker } from './vision.js';
 
 const affectionKey = 'eilik-affection-v1';
@@ -28,44 +28,124 @@ function playChirp(enabled, pitch = 520) {
   } catch { /* Audio is an optional enhancement. */ }
 }
 
-function Face({ emotion, onTouch, onSwipe, cameraActive, videoRef }) {
+function Face({ emotion, onTouch, onSwipe, onHeadHit, onCheekTap, onBellyTickle, cameraActive, videoRef }) {
   const startPoint = useRef(null);
+  const rightDrag = useRef(null);
+  const screenRef = useRef(null);
+  const headHits = useRef([]);
+  const cheekTimer = useRef(null);
   const [blink, setBlink] = useState(false);
+  const [blushing, setBlushing] = useState(false);
   useEffect(() => {
     const timer = window.setInterval(() => {
       setBlink(true);
       window.setTimeout(() => setBlink(false), 170);
     }, 4300 + Math.random() * 2700);
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearInterval(timer);
+      window.clearTimeout(cheekTimer.current);
+    };
   }, []);
 
   function pointerUp(event) {
+    if (event.button === 2) {
+      const drag = rightDrag.current;
+      rightDrag.current = null;
+      startPoint.current = null;
+      if (drag && drag.reversals >= 2 && drag.maxX - drag.minX >= 42) onHeadHit('dizzy');
+      return;
+    }
     if (!startPoint.current) return;
+    if (event.target.closest('.robot-head')) {
+      if (Math.abs(event.clientX - startPoint.current.x) > 48) {
+        onSwipe();
+        startPoint.current = null;
+        return;
+      }
+      const now = Date.now();
+      headHits.current = headHits.current.filter((hit) => now - hit < 2600);
+      headHits.current.push(now);
+      if (headHits.current.length >= 3) {
+        headHits.current = [];
+        onHeadHit('crying');
+      } else onHeadHit('dizzy');
+      startPoint.current = null;
+      return;
+    }
     if (Math.abs(event.clientX - startPoint.current.x) > 48) onSwipe();
     else onTouch();
     startPoint.current = null;
   }
 
+  function trackEyes(event) {
+    const screen = screenRef.current;
+    if (!screen) return;
+    const bounds = screen.getBoundingClientRect();
+    const horizontal = ((event.clientX - bounds.left) / bounds.width - 0.5) * 2;
+    const vertical = ((event.clientY - bounds.top) / bounds.height - 0.5) * 2;
+    screen.style.setProperty('--gaze-x', `${Math.max(-1, Math.min(1, horizontal)) * 4}px`);
+    screen.style.setProperty('--gaze-y', `${Math.max(-1, Math.min(1, vertical)) * 3}px`);
+    const drag = rightDrag.current;
+    if (!drag || !(event.buttons & 2)) return;
+    const delta = event.clientX - drag.lastX;
+    drag.minX = Math.min(drag.minX, event.clientX);
+    drag.maxX = Math.max(drag.maxX, event.clientX);
+    if (Math.abs(delta) >= 5) {
+      const direction = Math.sign(delta);
+      if (drag.direction && direction !== drag.direction) drag.reversals += 1;
+      drag.direction = direction;
+      drag.lastX = event.clientX;
+    }
+  }
+
+  function pointerDown(event) {
+    if (event.button === 2) {
+      event.preventDefault();
+      startPoint.current = null;
+      rightDrag.current = { lastX: event.clientX, minX: event.clientX, maxX: event.clientX, direction: 0, reversals: 0 };
+      event.currentTarget.setPointerCapture(event.pointerId);
+      return;
+    }
+    startPoint.current = { x: event.clientX };
+  }
+
+  function resetEyes() {
+    screenRef.current?.style.setProperty('--gaze-x', '0px');
+    screenRef.current?.style.setProperty('--gaze-y', '0px');
+  }
+
+  function blushCheek(event) {
+    event.stopPropagation();
+    setBlushing(true);
+    window.clearTimeout(cheekTimer.current);
+    cheekTimer.current = window.setTimeout(() => setBlushing(false), 1500);
+    onCheekTap();
+  }
+
+  function stopGesture(event) {
+    event.stopPropagation();
+  }
+
   return (
-    <div className={`robot-scene mood-${emotion.family} face-${emotion.face}`} onPointerDown={(event) => { startPoint.current = { x: event.clientX }; }} onPointerUp={pointerUp} role="button" tabIndex={0} aria-label={`Eilik is feeling ${emotion.name}. Tap for a reaction or swipe to pet.`} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') onTouch(); }}>
+    <div className={`robot-scene mood-${emotion.family} face-${emotion.face} ${blushing ? 'is-blushing' : ''}`} onPointerDown={pointerDown} onPointerUp={pointerUp} onPointerCancel={() => { rightDrag.current = null; startPoint.current = null; }} onPointerMove={trackEyes} onPointerLeave={resetEyes} onContextMenu={(event) => event.preventDefault()} role="group" tabIndex={0} aria-label={`Eilik is feeling ${emotion.name}. Tap the head for a reaction or swipe to pet.`} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') onTouch(); }}>
       <div className="robot-shadow" />
       <div className="robot-base"><span /></div>
       <div className="robot-arm robot-arm-left" /><div className="robot-arm robot-arm-right" />
-      <div className="robot-body"><div className="robot-chest-mark" /><span className="robot-name">Eilik</span><div className="robot-body-seam" /></div>
+      <div className="robot-body" role="button" tabIndex={0} aria-label="Tickle Eilik's belly" onPointerDown={stopGesture} onPointerUp={stopGesture} onClick={(event) => { event.stopPropagation(); onBellyTickle(); }} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onBellyTickle(); } }}><div className="robot-chest-mark" /><Heart className="robot-heart" size={12} fill="currentColor" aria-hidden="true" /><span className="robot-name">Eilik</span><div className="robot-body-seam" /></div>
       <div className="robot-neck" />
       <div className="robot-head">
         <div className="robot-top-accent" />
-        <div className={`robot-screen mood-${emotion.family} face-${emotion.face}`}>
+        <div ref={screenRef} className={`robot-screen mood-${emotion.family} face-${emotion.face}`}>
           {cameraActive && <video ref={videoRef} className="camera-preview" autoPlay muted playsInline aria-label="Local camera input" />}
           <div className={`face-eyes ${blink ? 'blink' : ''}`}>
-            <div className="eye eye-left"><span className="pupil" /></div>
-            <div className="eye eye-right"><span className="pupil" /></div>
+            <div className="eye eye-left"><span className="pupil" /><span className="cry-tear" aria-hidden="true" /></div>
+            <div className="eye eye-right"><span className="pupil" /><span className="cry-tear" aria-hidden="true" /></div>
           </div>
-          <div className="cheeks"><i /><i /></div>
+          <div className={`cheeks ${blushing ? 'blushing' : ''}`}><button type="button" aria-label="Tap Eilik's left cheek" onPointerDown={stopGesture} onPointerUp={stopGesture} onKeyDown={stopGesture} onClick={blushCheek} /><button type="button" aria-label="Tap Eilik's right cheek" onPointerDown={stopGesture} onPointerUp={stopGesture} onKeyDown={stopGesture} onClick={blushCheek} /></div>
           <div className="face-mouth"><span /></div>
         </div>
       </div>
-      <span className="robot-caption">{emotion.name}</span>
+      <span className="robot-caption">{['dizzy', 'crying'].includes(emotion.face) ? "Don't hit my head!" : emotion.name}</span>
     </div>
   );
 }
@@ -78,6 +158,8 @@ function App() {
   const [visionStatus, setVisionStatus] = useState('off');
   const [observedCue, setObservedCue] = useState({ label: 'Camera is off', confidence: 0, smile: 0, facePresent: false });
   const [recentMoods, setRecentMoods] = useState([{ id: 'curious', name: 'Curious', source: 'Just now' }]);
+  const [emotionFamily, setEmotionFamily] = useState('all');
+  const [emotionSearch, setEmotionSearch] = useState('');
   const [interactionCount, setInteractionCount] = useState(0);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [toast, setToast] = useState('');
@@ -93,6 +175,12 @@ function App() {
   const headHistoryRef = useRef([]);
   const lastMotionRef = useRef(0);
   const deviceMotionRef = useRef(null);
+
+  const visibleEmotions = emotions.filter((item) => {
+    const matchesFamily = emotionFamily === 'all' || item.family === emotionFamily;
+    const query = emotionSearch.trim().toLowerCase();
+    return matchesFamily && (!query || `${item.name} ${item.description}`.toLowerCase().includes(query));
+  });
 
   useEffect(() => { emotionRef.current = emotion; }, [emotion]);
   useEffect(() => { affectionRef.current = affection; }, [affection]);
@@ -254,9 +342,9 @@ function App() {
   }
 
   function react(kind) {
-    changeMood(chooseReaction(kind, affection, emotion.id), ['pet', 'wave', 'breathe', 'cheer'].includes(kind));
-    announce(({ pet: 'A happy little head pat.', wave: 'A wave right back at you.', breathe: 'Taking a slow breath together.', cheer: 'That calls for a celebration.' })[kind] ?? 'Boop!');
-    if (navigator.vibrate) navigator.vibrate(kind === 'pet' ? [12, 25, 12] : 16);
+    changeMood(chooseReaction(kind, affection, emotion.id), ['pet', 'wave', 'breathe', 'cheer', 'cheek', 'tickle'].includes(kind));
+    announce(({ pet: 'A happy little head pat.', wave: 'A wave right back at you.', breathe: 'Taking a slow breath together.', cheer: 'That calls for a celebration.', cheek: 'Eilik blushes at the cheek tap.', tickle: 'Heehee! That tickles!', dizzy: 'That was a little bonk!', crying: 'Three bonks! Eilik needs a little cry.' })[kind] ?? 'Boop!');
+    if (navigator.vibrate) navigator.vibrate(kind === 'pet' ? [12, 25, 12] : kind === 'tickle' ? [8, 18, 8, 18] : 16);
   }
 
   async function toggleCamera() {
@@ -282,17 +370,14 @@ function App() {
   return (
     <main className="app-shell">
       <header className="topbar">
-        <a className="brand" href="#home" aria-label="Eilik home"><span className="brand-symbol"><i /><i /></span><span>EILIK<span className="brand-light"> / VISION</span></span></a>
+        <a className="brand" href="#home" aria-label="Eilik home"><span className="brand-symbol"><i /><i /></span><span>EILIK</span></a>
+        <div className="header-welcome"><strong>Welcome, friend.</strong><span>Eilik is happy you're here.</span></div>
         <div className="topbar-right"><div className="privacy-note"><ShieldCheck size={15} /><span>Private, on-device vision</span></div><button className="icon-button" title={soundEnabled ? 'Mute sounds' : 'Enable sounds'} aria-label={soundEnabled ? 'Mute sounds' : 'Enable sounds'} onClick={() => setSoundEnabled((value) => !value)}>{soundEnabled ? <Volume2 size={17} /> : <VolumeX size={17} />}</button></div>
       </header>
 
       <div className="main-layout" id="home">
         <section className="companion-column" aria-label="Companion">
-          <div className="companion-heading"><div><span className="eyebrow"><span className="live-dot" /> YOUR LITTLE COMPANION</span><h1>Here with you<span className="heading-period">.</span></h1></div></div>
-          <div className="face-wrap"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><span className="orbit-label orbit-label-top">EILIK No. 01</span><span className="orbit-label orbit-label-bottom">MOOD / {String(emotion.number).padStart(2, '0')}</span><Face emotion={emotion} cameraActive={cameraActive} videoRef={videoRef} onTouch={() => react('tap')} onSwipe={() => react('pet')} /><div className="affection-badge"><span className="affection-icon"><Heart size={13} fill="currentColor" /></span><span><strong>{affection}%</strong><small>bond</small></span></div></div>
-          <div className="mood-readout" aria-live="polite"><div className="mood-readout-label"><span>RIGHT NOW</span><span className="mood-family">{emotion.familyName}</span></div><div className="mood-main"><div><h2>{emotion.name}</h2><p>{emotion.description}</p></div><span className="mood-level"><i /><i /><i /></span></div></div>
-          <div className="quick-actions" aria-label="Quick interactions"><button onClick={() => react('pet')}><span className="action-icon">♡</span><span>Head pat</span></button><button onClick={() => react('wave')}><span className="action-icon">↗</span><span>Wave hello</span></button><button onClick={() => react('breathe')}><Waves size={16} /><span>Breathe</span></button><button onClick={() => react('cheer')}><Sparkles size={16} /><span>Celebrate</span></button></div>
-          <div className="camera-disclosure"><div className="camera-disclosure-icon"><ShieldCheck size={17} /></div><p><strong>Your camera stays yours.</strong> Model files download from a CDN; video frames never leave this device. Face cues can be imperfect and are not a measure of how you truly feel.</p><Info size={16} className="disclosure-info" /></div>
+          <div className="face-wrap"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><Face emotion={emotion} cameraActive={cameraActive} videoRef={videoRef} onTouch={() => react('tap')} onSwipe={() => react('pet')} onHeadHit={(reaction) => react(reaction)} onCheekTap={() => react('cheek')} onBellyTickle={() => react('tickle')} /></div>
           {cameraError && <p className="camera-error" role="status">{cameraError}</p>}
         </section>
 
@@ -309,6 +394,22 @@ function App() {
             {!cameraActive && <button className="start-camera" onClick={toggleCamera}><Camera size={15} />Turn on local vision</button>}
             {cameraActive && <button className="stop-camera" onClick={toggleCamera}><CameraOff size={14} />Pause camera</button>}
           </div>
+
+          <section className="emotion-catalog" aria-label="Expression catalog">
+            <div className="learning-heading"><span className="eyebrow">ALL EXPRESSIONS</span><span className="interaction-total">{visibleEmotions.length} / {emotions.length}</span></div>
+            <label className="search-box"><input type="search" value={emotionSearch} onChange={(event) => setEmotionSearch(event.target.value)} placeholder="Search expressions" aria-label="Search expressions" /></label>
+            <div className="family-tabs" role="group" aria-label="Filter expressions by family">
+              <button type="button" className={emotionFamily === 'all' ? 'selected' : ''} aria-pressed={emotionFamily === 'all'} onClick={() => setEmotionFamily('all')}>All <span>{emotions.length}</span></button>
+              {families.map((family) => <button type="button" className={emotionFamily === family.id ? 'selected' : ''} aria-pressed={emotionFamily === family.id} key={family.id} onClick={() => setEmotionFamily(family.id)}>{family.name}</button>)}
+            </div>
+            {visibleEmotions.length ? <div className="emotion-list" role="listbox" aria-label="Expressions">
+              {visibleEmotions.map((item) => <button type="button" role="option" aria-selected={emotion.id === item.id} className={`emotion-row ${emotion.id === item.id ? 'current' : ''}`} key={item.id} onClick={() => changeMood(item)}>
+                <span className={`emotion-dot dot-${item.family}`}><span /></span>
+                <span className="emotion-info"><strong>{item.name}</strong><small>{item.description}</small></span>
+                <span className="emotion-number">{String(item.number).padStart(2, '0')}</span>
+              </button>)}
+            </div> : <p className="empty-state" role="status">No matching expressions</p>}
+          </section>
 
           <div className="companion-learning"><div className="learning-heading"><span className="eyebrow">OUR LITTLE HISTORY</span><span className="interaction-total">{interactionCount} interactions</span></div><div className="mood-trail">{recentMoods.map((item, index) => <div className={`trail-row ${index === 0 ? 'trail-current' : ''}`} key={`${item.id}-${index}`}><span className={`trail-dot trail-${getEmotion(item.id).family}`} /><span className="trail-name">{item.name}</span><span className="trail-source">{item.source}</span></div>)}</div></div>
           <div className="insight-footer"><span><span className="footer-dot" />50 MOODS, CHOSEN IN THE MOMENT</span><span>{affection}% BOND</span></div>

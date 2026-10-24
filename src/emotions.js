@@ -13,7 +13,7 @@ const rows = [
   ['Awestruck','curious','awe','Taking in something wonderful'], ['Skeptical','curious','skeptical','Not entirely convinced'],
   ['Thoughtful','curious','thoughtful','Let me think about that'], ['Dreamy','curious','dreamy','Drifting somewhere pleasant'],
   ['Eureka','curious','eureka','A bright little idea'], ['Shy','tender','shy','Peeking out, just a little'],
-  ['Sad','tender','sad','A quieter kind of moment'], ['Sleepy','tender','sleepy','Getting cozy and slow'],
+  ['Sad','tender','sad','A quieter kind of moment'], ['Crying','tender','crying','A few little tears, but I am here'], ['Sleepy','tender','sleepy','Getting cozy and slow'],
   ['Exhausted','tender','exhausted','Running a little low'], ['Timid','tender','timid','Taking things gently'],
   ['Melancholy','tender','melancholy','A soft, rainy-day feeling'], ['Sheepish','tender','sheepish','Oops, was that me?'],
   ['Embarrassed','tender','embarrassed','A tiny bit flustered'], ['Melting','tender','melting','Too much sweetness'],
@@ -44,7 +44,7 @@ export function chooseReaction(kind, affection = 0, previousId = '') {
     pet: ['affectionate', 'happy', 'playful', 'grateful'], wave: ['enthusiastic', 'happy', 'surprised'],
     tap: ['surprised', 'curious', 'goofy'], breathe: ['zen', 'relieved', 'thoughtful'],
     cover: ['grumpy', 'puzzled', 'shy'], cheer: affection >= 85 ? ['starstruck', 'ecstatic', 'proud'] : ['ecstatic', 'proud', 'happy'],
-    nod: ['grateful', 'enthusiastic', 'happy'],
+    nod: ['grateful', 'enthusiastic', 'happy'], crying: ['crying'], dizzy: ['dizzy'], cheek: ['shy'], tickle: ['ticklish'],
     tilt: ['curious', 'thoughtful', 'playful'],
   };
   const options = choices[kind] ?? choices.tap;
