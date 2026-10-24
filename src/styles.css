@@ -75,6 +75,36 @@
 @keyframes tickle-laugh { to { transform:scaleY(1.18); } }
 @keyframes tickle-wiggle { from { transform:translateX(calc(-50% - 2px)) rotate(-1deg); } to { transform:translateX(calc(-50% + 2px)) rotate(1deg); } }
 @keyframes tickle-nod { from { transform:translateX(-50%) rotate(-2deg); } to { transform:translateX(-50%) rotate(2deg); } }
+.insight-panel { display:flex; flex-direction:column; }
+.insight-heading { order:0; }
+.emotion-catalog { order:1; }
+.camera-observation { order:2; margin-top:14px; }
+.companion-learning { order:3; }
+.insight-footer { order:4; }
+.camera-observation-summary { min-height:38px; display:flex; align-items:center; gap:8px; padding:0 10px; border:1px solid rgba(255,255,255,.72); background:rgba(255,255,255,.78); color:#315c62; font-size:10px; cursor:pointer; list-style:none; }
+.camera-observation-summary::-webkit-details-marker { display:none; }
+.camera-observation-summary>svg:first-child { color:#148f96; }
+.camera-observation-status { margin-left:auto; color:#168a8f; font:9px var(--mono); letter-spacing:.7px; }
+.camera-observation-summary>svg:last-child { color:#58808a; transition:transform .2s; }
+.camera-observation[open] .camera-observation-summary>svg:last-child { transform:rotate(180deg); }
+.camera-observation .signal-card { margin-top:8px; }
+.robot-screen.face-sneeze .face-eyes { top:43%; }
+.robot-screen.face-sneeze .eye { height:8px; transform:scaleX(.92); }
+.robot-screen.face-sneeze .eye-left { transform:rotate(8deg) scaleX(.88); }
+.robot-screen.face-sneeze .eye-right { transform:rotate(-8deg) scaleX(.88); }
+.robot-screen.face-sneeze .face-mouth { top:67%; width:29px; height:24px; }
+.robot-screen.face-sneeze .face-mouth span { width:18px; height:19px; border:2px solid #63efff; border-radius:50%; background:#031720; animation:sneeze-mouth .38s ease-in-out 3; }
+.face-sneeze .robot-head { animation:sneeze-burst .42s ease-out 3; }
+.robot-screen.face-yawn .eye { height:5px; border-radius:50%; transform:translateY(4px); }
+.robot-screen.face-yawn .face-mouth { top:64%; width:30px; height:28px; }
+.robot-screen.face-yawn .face-mouth span { width:19px; height:25px; border:2px solid #63efff; border-radius:50%; background:#031720; animation:yawn-mouth 1s ease-in-out 2 alternate; }
+.robot-screen.face-hiccup .face-mouth span { width:14px; height:14px; border:2px solid #63efff; border-radius:50%; background:#031720; animation:hiccup-mouth .34s ease-in-out 6; }
+.face-hiccup .robot-head { animation:hiccup-bob .34s ease-in-out 6; }
+@keyframes sneeze-mouth { 0%,100% { transform:scale(.72); } 45% { transform:scale(1.18); } }
+@keyframes sneeze-burst { 0%,100% { transform:translateX(-50%); } 35% { transform:translateX(-50%) translateY(7px) rotate(-4deg); } 70% { transform:translateX(-50%) translateY(-2px) rotate(2deg); } }
+@keyframes yawn-mouth { from { transform:scale(.72,.58); } to { transform:scale(1,1.16); } }
+@keyframes hiccup-mouth { 0%,100% { transform:scale(.72); } 50% { transform:scale(1.12); } }
+@keyframes hiccup-bob { 0%,100% { transform:translateX(-50%); } 50% { transform:translateX(-50%) translateY(5px); } }
 .emotion-catalog { margin-top:20px; }
 .emotion-catalog .search-box { margin-top:10px; }
 .emotion-catalog .family-tabs { margin-top:9px; }

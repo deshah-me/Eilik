@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Activity, Camera, CameraOff, Heart, Mic2, ShieldCheck, Sparkles, Volume2, VolumeX } from 'lucide-react';
+import { Activity, Camera, CameraOff, ChevronDown, Heart, Mic2, ShieldCheck, Sparkles, Volume2, VolumeX } from 'lucide-react';
 import { chooseIdleMood, chooseReaction, emotions, families, getEmotion, readFaceCue, readHeadMotion } from './emotions.js';
 import { createLocalFaceLandmarker } from './vision.js';
 
-const affectionKey = 'eilik-affection-v1';
+const affectionKey = 'rihan-affection-v1';
 function readAffection() {
   try { return Math.min(100, Math.max(0, Number(localStorage.getItem(affectionKey)) || 42)); }
   catch { return 42; }
@@ -127,11 +127,11 @@ function Face({ emotion, onTouch, onSwipe, onHeadHit, onCheekTap, onBellyTickle,
   }
 
   return (
-    <div className={`robot-scene mood-${emotion.family} face-${emotion.face} ${blushing ? 'is-blushing' : ''}`} onPointerDown={pointerDown} onPointerUp={pointerUp} onPointerCancel={() => { rightDrag.current = null; startPoint.current = null; }} onPointerMove={trackEyes} onPointerLeave={resetEyes} onContextMenu={(event) => event.preventDefault()} role="group" tabIndex={0} aria-label={`Eilik is feeling ${emotion.name}. Tap the head for a reaction or swipe to pet.`} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') onTouch(); }}>
+    <div className={`robot-scene mood-${emotion.family} face-${emotion.face} ${blushing ? 'is-blushing' : ''}`} onPointerDown={pointerDown} onPointerUp={pointerUp} onPointerCancel={() => { rightDrag.current = null; startPoint.current = null; }} onPointerMove={trackEyes} onPointerLeave={resetEyes} onContextMenu={(event) => event.preventDefault()} role="group" tabIndex={0} aria-label={`Rihan is feeling ${emotion.name}. Tap the head for a reaction or swipe to pet.`} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') onTouch(); }}>
       <div className="robot-shadow" />
       <div className="robot-base"><span /></div>
       <div className="robot-arm robot-arm-left" /><div className="robot-arm robot-arm-right" />
-      <div className="robot-body" role="button" tabIndex={0} aria-label="Tickle Eilik's belly" onPointerDown={stopGesture} onPointerUp={stopGesture} onClick={(event) => { event.stopPropagation(); onBellyTickle(); }} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onBellyTickle(); } }}><div className="robot-chest-mark" /><Heart className="robot-heart" size={12} fill="currentColor" aria-hidden="true" /><span className="robot-name">Eilik</span><div className="robot-body-seam" /></div>
+      <div className="robot-body" role="button" tabIndex={0} aria-label="Tickle Rihan's belly" onPointerDown={stopGesture} onPointerUp={stopGesture} onClick={(event) => { event.stopPropagation(); onBellyTickle(); }} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onBellyTickle(); } }}><div className="robot-chest-mark" /><Heart className="robot-heart" size={12} fill="currentColor" aria-hidden="true" /><span className="robot-name">Rihan</span><div className="robot-body-seam" /></div>
       <div className="robot-neck" />
       <div className="robot-head">
         <div className="robot-top-accent" />
@@ -141,7 +141,7 @@ function Face({ emotion, onTouch, onSwipe, onHeadHit, onCheekTap, onBellyTickle,
             <div className="eye eye-left"><span className="pupil" /><span className="cry-tear" aria-hidden="true" /></div>
             <div className="eye eye-right"><span className="pupil" /><span className="cry-tear" aria-hidden="true" /></div>
           </div>
-          <div className={`cheeks ${blushing ? 'blushing' : ''}`}><button type="button" aria-label="Tap Eilik's left cheek" onPointerDown={stopGesture} onPointerUp={stopGesture} onKeyDown={stopGesture} onClick={blushCheek} /><button type="button" aria-label="Tap Eilik's right cheek" onPointerDown={stopGesture} onPointerUp={stopGesture} onKeyDown={stopGesture} onClick={blushCheek} /></div>
+          <div className={`cheeks ${blushing ? 'blushing' : ''}`}><button type="button" aria-label="Tap Rihan's left cheek" onPointerDown={stopGesture} onPointerUp={stopGesture} onKeyDown={stopGesture} onClick={blushCheek} /><button type="button" aria-label="Tap Rihan's right cheek" onPointerDown={stopGesture} onPointerUp={stopGesture} onKeyDown={stopGesture} onClick={blushCheek} /></div>
           <div className="face-mouth"><span /></div>
         </div>
       </div>
@@ -334,16 +334,18 @@ function App() {
     setInteractionCount((count) => count + 1);
     playChirp(soundEnabled, next.family === 'spicy' ? 260 : next.family === 'tender' ? 390 : 520);
     window.clearTimeout(decayRef.current);
-    if (next.id !== 'curious' && !cameraActive) decayRef.current = window.setTimeout(() => {
+    const briefExpression = ['sneeze', 'yawn', 'hiccup'].includes(next.face);
+    if (next.id !== 'curious' && (briefExpression || !cameraActive)) decayRef.current = window.setTimeout(() => {
+      if (emotionRef.current.id !== next.id) return;
       emotionRef.current = getEmotion('curious');
       setEmotion(getEmotion('curious'));
-    }, 8500);
+    }, briefExpression ? 3000 : 8500);
     if (reward) setAffection((value) => Math.min(100, value + 1));
   }
 
   function react(kind) {
     changeMood(chooseReaction(kind, affection, emotion.id), ['pet', 'wave', 'breathe', 'cheer', 'cheek', 'tickle'].includes(kind));
-    announce(({ pet: 'A happy little head pat.', wave: 'A wave right back at you.', breathe: 'Taking a slow breath together.', cheer: 'That calls for a celebration.', cheek: 'Eilik blushes at the cheek tap.', tickle: 'Heehee! That tickles!', dizzy: 'That was a little bonk!', crying: 'Three bonks! Eilik needs a little cry.' })[kind] ?? 'Boop!');
+    announce(({ pet: 'A happy little head pat.', wave: 'A wave right back at you.', breathe: 'Taking a slow breath together.', cheer: 'That calls for a celebration.', cheek: 'Rihan blushes at the cheek tap.', tickle: 'Heehee! That tickles!', dizzy: 'That was a little bonk!', crying: 'Three bonks! Rihan needs a little cry.' })[kind] ?? 'Boop!');
     if (navigator.vibrate) navigator.vibrate(kind === 'pet' ? [12, 25, 12] : kind === 'tickle' ? [8, 18, 8, 18] : 16);
   }
 
@@ -364,36 +366,37 @@ function App() {
       }
       streamRef.current = stream;
       setCameraActive(true);
-    } catch { setCameraError('Camera permission was unavailable. You can still play with Eilik.'); }
+    } catch { setCameraError('Camera permission was unavailable. You can still play with Rihan.'); }
   }
 
   return (
     <main className="app-shell">
       <header className="topbar">
-        <a className="brand" href="#home" aria-label="Eilik home"><span className="brand-symbol"><i /><i /></span><span>EILIK</span></a>
-        <div className="header-welcome"><strong>Welcome, friend.</strong><span>Eilik is happy you're here.</span></div>
+        <a className="brand" href="#home" aria-label="Rihan home"><span className="brand-symbol"><i /><i /></span><span>RIHAN</span></a>
+        <div className="header-welcome"><strong>Welcome, Deepak.</strong><span>Rihan is happy you're here.</span></div>
         <div className="topbar-right"><div className="privacy-note"><ShieldCheck size={15} /><span>Private, on-device vision</span></div><button className="icon-button" title={soundEnabled ? 'Mute sounds' : 'Enable sounds'} aria-label={soundEnabled ? 'Mute sounds' : 'Enable sounds'} onClick={() => setSoundEnabled((value) => !value)}>{soundEnabled ? <Volume2 size={17} /> : <VolumeX size={17} />}</button></div>
       </header>
 
       <div className="main-layout" id="home">
         <section className="companion-column" aria-label="Companion">
           <div className="face-wrap"><div className="orbit orbit-one" /><div className="orbit orbit-two" /><Face emotion={emotion} cameraActive={cameraActive} videoRef={videoRef} onTouch={() => react('tap')} onSwipe={() => react('pet')} onHeadHit={(reaction) => react(reaction)} onCheekTap={() => react('cheek')} onBellyTickle={() => react('tickle')} /></div>
+          <details className="camera-observation">
+            <summary className="camera-observation-summary"><Activity size={15} /><span>Vision controls</span><span className="camera-observation-status">{visionStatus === 'ready' ? 'LIVE' : visionStatus === 'loading' ? 'STARTING' : visionStatus === 'error' ? 'UNAVAILABLE' : 'READY'}</span><ChevronDown size={16} /></summary>
+            <div className={`signal-card ${cameraActive ? 'signal-active' : ''}`}>
+              <div className="signal-card-header"><span>{cameraActive ? 'LIVE OBSERVATION' : 'CAMERA SIGNAL'}</span><span className="signal-private"><ShieldCheck size={13} /> ON DEVICE</span></div>
+              <div className="signal-visual"><div className="signal-orbit"><div className="signal-center"><span className={cameraActive ? 'signal-eye active' : 'signal-eye'} /></div><i /><i /><i /><i /><i /><i /><i /><i /></div></div>
+              <strong className="signal-label">{visionStatus === 'loading' ? 'Warming up my eyes' : visionStatus === 'error' ? 'I can still keep you company' : observedCue.label}</strong>
+              <p className="signal-description">{cameraActive ? (observedCue.facePresent ? 'A visual cue, not a verdict about how you feel. Try nodding or shaking your head.' : 'Looking for a face in the frame.') : 'I learn from little interactions. Turn on the camera if you want me to notice expressions and head movement.'}</p>
+              <div className="signal-metrics"><div><span>FACE IN FRAME</span><strong>{cameraActive ? (observedCue.facePresent ? 'YES' : 'SEARCHING') : 'CAMERA OFF'}</strong></div><div><span>EXPRESSION SIGNAL</span><strong>{observedCue.confidence ? `${observedCue.confidence}%` : '—'}</strong></div></div>
+              {!cameraActive && <button className="start-camera" onClick={toggleCamera}><Camera size={15} />Turn on local vision</button>}
+              {cameraActive && <button className="stop-camera" onClick={toggleCamera}><CameraOff size={14} />Pause camera</button>}
+            </div>
+          </details>
           {cameraError && <p className="camera-error" role="status">{cameraError}</p>}
         </section>
 
         <aside className="insight-panel" aria-label="Companion intelligence">
           <div className="insight-heading"><div><span className="eyebrow">COMPANION INTELLIGENCE</span><h2>Noticing the little things<span className="heading-period">.</span></h2></div><div className={`engine-light engine-${visionStatus}`} title={`Vision status: ${visionStatus}`}><span /></div></div>
-          <div className="insight-status"><Activity size={15} /><span>{visionStatus === 'ready' ? 'On-device vision is active' : visionStatus === 'loading' ? 'Preparing local vision model' : visionStatus === 'error' ? 'Vision unavailable' : 'Quietly keeping you company'}</span><span className="status-live">{visionStatus === 'ready' ? 'LIVE' : 'READY'}</span></div>
-
-          <div className={`signal-card ${cameraActive ? 'signal-active' : ''}`}>
-            <div className="signal-card-header"><span>{cameraActive ? 'LIVE OBSERVATION' : 'CAMERA OBSERVATION'}</span><span className="signal-private"><ShieldCheck size={13} /> LOCAL</span></div>
-            <div className="signal-visual"><div className="signal-orbit"><div className="signal-center"><span className={cameraActive ? 'signal-eye active' : 'signal-eye'} /></div><i /><i /><i /><i /><i /><i /><i /><i /></div></div>
-            <strong className="signal-label">{visionStatus === 'loading' ? 'Warming up my eyes' : visionStatus === 'error' ? 'I can still keep you company' : observedCue.label}</strong>
-            <p className="signal-description">{cameraActive ? (observedCue.facePresent ? 'A visual cue, not a verdict about how you feel. Try nodding or shaking your head.' : 'Looking for a face in the frame.') : 'I learn from little interactions. Turn on the camera if you want me to notice expressions and head movement.'}</p>
-            <div className="signal-metrics"><div><span>FACE IN FRAME</span><strong>{cameraActive ? (observedCue.facePresent ? 'YES' : 'SEARCHING') : 'CAMERA OFF'}</strong></div><div><span>EXPRESSION SIGNAL</span><strong>{observedCue.confidence ? `${observedCue.confidence}%` : '—'}</strong></div></div>
-            {!cameraActive && <button className="start-camera" onClick={toggleCamera}><Camera size={15} />Turn on local vision</button>}
-            {cameraActive && <button className="stop-camera" onClick={toggleCamera}><CameraOff size={14} />Pause camera</button>}
-          </div>
 
           <section className="emotion-catalog" aria-label="Expression catalog">
             <div className="learning-heading"><span className="eyebrow">ALL EXPRESSIONS</span><span className="interaction-total">{visibleEmotions.length} / {emotions.length}</span></div>
@@ -416,7 +419,7 @@ function App() {
         </aside>
       </div>
 
-      <footer className="app-footer"><span>SMALL FRIEND. BIG FEELINGS.</span><span><Mic2 size={13} /> LOCAL INTERACTIONS ONLY</span><span>BUILT FOR THE IN-BETWEEN</span></footer>
+      <footer className="app-footer"><span>SMALL DEEPAK. BIG FEELINGS.</span><span><Mic2 size={13} /> LOCAL INTERACTIONS ONLY</span><span>BUILT FOR THE IN-BETWEEN</span></footer>
       {toast && <div className="toast" role="status"><Sparkles size={15} />{toast}</div>}
     </main>
   );
